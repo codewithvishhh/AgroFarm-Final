@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agrofarm
+      POSTGRES_PASSWORD: agrofarm
+      POSTGRES_DB: agrofarm
+    ports:
+      - "5432:5432"
+    volumes:
+      - agrofarm_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agrofarm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg2://agrofarm:agrofarm@db:5432/agrofarm
+      CORS_ORIGINS: http://localhost:5173
+      SIMULATOR_ENABLED: "true"
+      SEED_DEMO_DATA: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+      VITE_WS_URL: ws://localhost:8000/ws/live
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  agrofarm_pgdata:
