@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  /* One glass recipe reused across the whole product. */
+  --glass-bg: rgba(18, 29, 24, 0.55);
+  --glass-bg-strong: rgba(13, 21, 18, 0.72);
+  --glass-border: rgba(230, 239, 232, 0.10);
+  --glass-highlight: rgba(255, 255, 255, 0.07);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-canopy text-husk font-body antialiased;
+}
+
+/* Thin, quiet scrollbars so tables keep the panel look. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #274236;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid #4fbf7a;
+  outline-offset: 2px;
+}
+
+@layer components {
+  /* Frosted panel: translucent fill, hairline border, inner highlight. */
+  .glass {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    -webkit-backdrop-filter: blur(16px) saturate(1.25);
+    backdrop-filter: blur(16px) saturate(1.25);
+    box-shadow:
+      0 1px 0 var(--glass-highlight) inset,
+      0 20px 50px -20px rgba(0, 0, 0, 0.75);
+  }
+
+  .glass-strong {
+    background: var(--glass-bg-strong);
+    border: 1px solid var(--glass-border);
+    -webkit-backdrop-filter: blur(24px) saturate(1.3);
+    backdrop-filter: blur(24px) saturate(1.3);
+    box-shadow:
+      0 1px 0 var(--glass-highlight) inset,
+      0 32px 70px -26px rgba(0, 0, 0, 0.85);
+  }
+
+  /* Hairline of light along the top edge of a card. */
+  .edge-light {
+    position: relative;
+  }
+  .edge-light::before {
+    content: "";
+    position: absolute;
+    inset-inline: 12%;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(230, 239, 232, 0.28),
+      transparent
+    );
+    pointer-events: none;
+  }
+
+  /* Containers that host tilting children need a shared perspective. */
+  .scene {
+    perspective: 1200px;
+    perspective-origin: 50% 40%;
+  }
+
+  /* Film grain, inlined as a data URI so nothing is requested. */
+  .grain {
+    opacity: 0.2;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+
+  .text-cinematic {
+    text-shadow: 0 18px 60px rgba(0, 0, 0, 0.75);
+  }
+}
+
+@layer utilities {
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+  /* Hint the compositor only where we actually animate transforms. */
+  .will-transform {
+    will-change: transform;
+  }
+}
+
+/* Leaflet needs a dark treatment to sit inside the control tower theme. */
+.leaflet-container {
+  background: #0d1512;
+  font-family: inherit;
+}
+.leaflet-tile {
+  filter: grayscale(0.55) brightness(0.62) contrast(1.12) saturate(0.8)
+    hue-rotate(-8deg);
+}
+.leaflet-control-attribution {
+  background: rgba(13, 21, 18, 0.7) !important;
+  color: #8ca79a !important;
+  font-size: 10px;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-radius: 8px 0 0 0;
+}
+.leaflet-control-attribution a {
+  color: #4fbf7a !important;
+}
+/* Glass map controls so the map reads as part of the command centre. */
+.leaflet-bar,
+.leaflet-bar a {
+  background: rgba(18, 29, 24, 0.6) !important;
+  color: #e6efe8 !important;
+  border-color: rgba(230, 239, 232, 0.12) !important;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.leaflet-bar a:hover {
+  background: rgba(79, 191, 122, 0.18) !important;
+  color: #4fbf7a !important;
+}
+.leaflet-bar {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.9) !important;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgba(13, 21, 18, 0.88) !important;
+  color: #e6efe8 !important;
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(230, 239, 232, 0.12);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.9) !important;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 14px !important;
+}
+.leaflet-popup-close-button {
+  color: #8ca79a !important;
+}
+
+.truck-marker {
+  background: transparent;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
