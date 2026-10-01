@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: agrofarm-api
+    rootDir: backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agrofarm-db
+          property: connectionString
+      - key: CORS_ORIGINS
+        value: https://agro-farm-final.vercel.app
+      - key: SIMULATOR_ENABLED
+        value: true
+      - key: SEED_DEMO_DATA
+        value: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.6-flash
+
+databases:
+  - name: agrofarm-db
+    databaseName: agrofarm
+    user: agrofarm
+    plan: free
