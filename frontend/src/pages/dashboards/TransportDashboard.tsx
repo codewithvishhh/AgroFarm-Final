@@ -17,8 +17,12 @@ import { mergeShipment, useLiveEvent } from "../../hooks/useLive";
 import { emergenciesApi, shipmentsApi, vehiclesApi } from "../../services/api";
 import type { Emergency, Shipment } from "../../types";
 import { formatEta, timeAgo, titleCase } from "../../utils/format";
+import { LanguageSelector } from "../../components/LanguageSelector";
+import { ListenButton } from "../../components/ListenButton";
+import { useI18n } from "../../i18n/LanguageProvider";
 
 export function TransportDashboard() {
+  const { t } = useI18n();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [emergencies, setEmergencies] = useState<Emergency[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -72,12 +76,41 @@ export function TransportDashboard() {
   const count = (status: string) =>
     rows.filter((row) => row.status === status).length;
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const delayed = shipments.filter((shipment) => shipment.status === "DELAYED");
+    const lines = [
+      t("Transport dashboard summary."),
+      t("The fleet has {total} vehicles: {available} available, {transit} in transit and {maintenance} in maintenance.", {
+        total: rows.length,
+        available: count("AVAILABLE"),
+        transit: count("IN_TRANSIT"),
+        maintenance: count("MAINTENANCE"),
+      }),
+      t("{count} routes are active right now.", { count: moving.length }),
+      delayed.length > 0
+        ? t("{count} shipments are delayed and need attention.", {
+            count: delayed.length,
+          })
+        : t("No shipments are delayed."),
+      active.length > 0
+        ? t("There are {count} active emergencies.", { count: active.length })
+        : t("There are no active emergencies."),
+    ];
+    return lines.join(" ");
+  };
+
   if (state.loading && shipments.length === 0) {
     return <Loader label="Loading fleet" />;
   }
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <motion.div
         variants={listStagger}
         initial="hidden"

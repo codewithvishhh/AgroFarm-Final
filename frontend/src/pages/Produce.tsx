@@ -14,9 +14,13 @@ import { mergeShipment, useLiveEvent } from "../hooks/useLive";
 import { shipmentsApi, vehiclesApi, warehousesApi } from "../services/api";
 import type { Shipment } from "../types";
 import { formatQuantity, formatRupees, timeAgo } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 /** Farmer view of their own produce, grouped by crop. */
 export function Produce() {
+  const { t } = useI18n();
   const { session } = useAuth();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -48,12 +52,44 @@ export function Produce() {
     return acc;
   }, {});
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const number = (value: number) =>
+      value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const kinds = Object.entries(grouped);
+    if (kinds.length === 0) {
+      return [t("Produce summary."), t("No produce raised yet")].join(" ");
+    }
+    const lines = [
+      t("Produce summary."),
+      t("You have {count} produce requests across {kinds} produce types.", {
+        count: scope.length,
+        kinds: kinds.length,
+      }),
+    ];
+    kinds.slice(0, 5).forEach(([produce, rows]) => {
+      lines.push(
+        t("{produce}: {count} requests, {qty} kilograms.", {
+          produce: t(produce),
+          count: rows.length,
+          qty: number(rows.reduce((sum, row) => sum + row.quantity, 0)),
+        }),
+      );
+    });
+    return lines.join(" ");
+  };
+
   if (state.loading && shipments.length === 0) {
     return <Loader label="Loading your produce" />;
   }
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <div className="flex justify-end">
         <Button onClick={() => setFormOpen(true)}>Add produce request</Button>
       </div>

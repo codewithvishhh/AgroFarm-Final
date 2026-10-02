@@ -38,7 +38,7 @@ export function ListenButton({ getText }: { getText: () => string }) {
       title={
         supported
           ? speaking
-            ? t("Reading the dashboard aloud")
+            ? t("Reading this page aloud")
             : t("Listen")
           : t("Speech is not supported in this browser")
       }

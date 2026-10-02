@@ -12,8 +12,12 @@ import { useLive, useLiveEvent } from "../hooks/useLive";
 import { shipmentsApi, vehiclesApi } from "../services/api";
 import type { Shipment, VehicleStatus } from "../types";
 import { formatEta, titleCase } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 export function Fleet() {
+  const { t } = useI18n();
   const { pushToast } = useLive();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -98,10 +102,49 @@ export function Fleet() {
     }
   };
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const count = (status: VehicleStatus) =>
+      rows.filter((row) => row.status === status).length;
+    const enRoute = rows.filter(
+      (row) => row.eta_minutes !== null && row.status === "IN_TRANSIT",
+    );
+    const lines = [
+      t("Fleet status summary."),
+      t("The fleet has {total} vehicles: {available} available, {transit} in transit and {maintenance} in maintenance.", {
+        total: rows.length,
+        available: count("AVAILABLE"),
+        transit: count("IN_TRANSIT"),
+        maintenance: count("MAINTENANCE"),
+      }),
+      t("{count} shipments are waiting for a vehicle.", {
+        count: assignable.length,
+      }),
+    ];
+    const soonest = enRoute
+      .slice()
+      .sort((a, b) => (a.eta_minutes ?? 0) - (b.eta_minutes ?? 0))[0];
+    if (soonest) {
+      lines.push(
+        t("Next arrival is vehicle {vehicle} in about {minutes} minutes.", {
+          vehicle: soonest.vehicle_number,
+          minutes: Math.round(soonest.eta_minutes ?? 0),
+        }),
+      );
+    }
+    return lines.join(" ");
+  };
+
+
   if (fleet.loading && rows.length === 0) return <Loader label="Loading fleet" />;
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <div className="flex justify-end">
         <Button variant="danger" onClick={() => setDialogOpen(true)}>
           Report emergency

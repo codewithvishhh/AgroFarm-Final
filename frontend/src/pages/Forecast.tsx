@@ -18,6 +18,9 @@ import { StatCard } from "../components/StatCard";
 import { useFetch } from "../hooks/useFetch";
 import { forecastApi } from "../services/api";
 import { formatDate } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 const axisStyle = { fill: "#8CA79A", fontSize: 11 };
 const tooltipStyle = {
@@ -29,6 +32,7 @@ const tooltipStyle = {
 };
 
 export function Forecast() {
+  const { t } = useI18n();
   const [produce, setProduce] = useState("Tomato");
 
   const produceTypes = useFetch(
@@ -61,8 +65,55 @@ export function Forecast() {
       ]
     : [];
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const number = (value: number) =>
+      value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    if (!data) {
+      return [t("Demand forecast summary."), t("Forecast is still loading.")].join(" ");
+    }
+    const lines = [
+      t("Demand forecast summary for {produce}.", { produce: t(data.produce_type) }),
+      t("Expected demand is {qty} {unit}. Recommended stock is {stock} and current stock is {current}.", {
+        qty: number(data.expected_demand),
+        unit: data.unit,
+        stock: number(data.recommended_stock),
+        current: number(data.current_stock),
+      }),
+      data.trend_percentage >= 0
+        ? t("Demand is trending up by {percent} percent.", {
+            percent: Math.abs(data.trend_percentage).toFixed(0),
+          })
+        : t("Demand is trending down by {percent} percent.", {
+            percent: Math.abs(data.trend_percentage).toFixed(0),
+          }),
+    ];
+    if (data.potential_shortage > 0) {
+      lines.push(
+        t("Possible shortage of {qty} {unit}.", {
+          qty: number(data.potential_shortage),
+          unit: data.unit,
+        }),
+      );
+    } else if (data.potential_surplus > 0) {
+      lines.push(
+        t("Possible surplus of {qty} {unit}.", {
+          qty: number(data.potential_surplus),
+          unit: data.unit,
+        }),
+      );
+    }
+    return lines.join(" ");
+  };
+
+
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <div className="flex flex-wrap gap-1.5">
         {(produceTypes.data ?? []).map((item) => (
           <button

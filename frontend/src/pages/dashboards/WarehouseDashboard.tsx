@@ -30,6 +30,9 @@ import {
 } from "../../services/api";
 import type { Shipment } from "../../types";
 import { formatQuantity, timeAgo } from "../../utils/format";
+import { LanguageSelector } from "../../components/LanguageSelector";
+import { ListenButton } from "../../components/ListenButton";
+import { useI18n } from "../../i18n/LanguageProvider";
 
 const axisStyle = { fill: "#8CA79A", fontSize: 11 };
 const tooltipStyle = {
@@ -41,6 +44,7 @@ const tooltipStyle = {
 };
 
 export function WarehouseDashboard() {
+  const { t } = useI18n();
   const [shipments, setShipments] = useState<Shipment[]>([]);
 
   const stats = useFetch(() => dashboardApi.stats(), [], "stats");
@@ -97,12 +101,61 @@ export function WarehouseDashboard() {
     ),
   ).sort((a, b) => b.quantity - a.quantity);
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const number = (value: number) =>
+      value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const low = lowStock.data ?? [];
+    const lines = [
+      t("Warehouse dashboard summary."),
+      t("Stock on hand is {qty} kilograms across {types} produce types.", {
+        qty: number(totalStock),
+        types: produceTypes.size,
+      }),
+      t("Network utilization is {percent} percent across {count} warehouses.", {
+        percent: stats.data?.warehouse_utilization ?? 0,
+        count: stats.data?.total_warehouses ?? 0,
+      }),
+      t("{count} shipments are heading into storage.", { count: incoming.length }),
+    ];
+    const fullest = [...(warehouses.data ?? [])].sort(
+      (a, b) => b.current_utilization - a.current_utilization,
+    )[0];
+    if (fullest) {
+      lines.push(
+        t("{name} is the fullest warehouse at {percent} percent.", {
+          name: fullest.name,
+          percent: fullest.current_utilization.toFixed(0),
+        }),
+      );
+    }
+    if (byProduce[0]) {
+      lines.push(
+        t("The largest stock is {produce}, with {qty} kilograms.", {
+          produce: t(byProduce[0].produce_type),
+          qty: number(byProduce[0].quantity),
+        }),
+      );
+    }
+    lines.push(
+      low.length > 0
+        ? t("{count} items are below their reorder level.", { count: low.length })
+        : t("No items are below their reorder level."),
+    );
+    return lines.join(" ");
+  };
+
   if (state.loading && shipments.length === 0 && items.length === 0) {
     return <Loader label="Loading warehouse" />;
   }
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <motion.div
         variants={listStagger}
         initial="hidden"

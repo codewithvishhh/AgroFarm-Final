@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 
 import { listStagger } from "../../animations/variants";
 import { EmptyState } from "../../components/EmptyState";
+import { LanguageSelector } from "../../components/LanguageSelector";
+import { ListenButton } from "../../components/ListenButton";
 import { Loader } from "../../components/Loader";
 import { Panel } from "../../components/Panel";
 import { StatCard } from "../../components/StatCard";
@@ -11,12 +13,14 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { TruckMap } from "../../components/TruckMap";
 import { useFetch } from "../../hooks/useFetch";
 import { mergeShipment, useLiveEvent } from "../../hooks/useLive";
+import { useI18n } from "../../i18n/LanguageProvider";
 import { shipmentsApi, vehiclesApi, warehousesApi } from "../../services/api";
 import type { Shipment } from "../../types";
 import { formatQuantity, timeAgo, titleCase } from "../../utils/format";
 
 export function CollectionDashboard() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
+  const { t } = useI18n();
 
   const state = useFetch(
     () => shipmentsApi.list().then((rows) => (setShipments(rows), rows)),
@@ -59,12 +63,56 @@ export function CollectionDashboard() {
     ["PICKUP_ASSIGNED", "COLLECTED"].includes(shipment.collection_status),
   );
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const number = (value: number) =>
+      value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const lines = [
+      t("Collection dashboard summary."),
+      t("{count} farmer requests are waiting for a decision, and {progress} are accepted and in progress.", {
+        count: pending.length,
+        progress: inProgress.length,
+      }),
+      t("Farmers raised {qty} kilograms for collection today.", {
+        qty: number(todayVolume),
+      }),
+      t("{count} collections are completed.", { count: collected.length }),
+      t("{active} of {total} vehicles are out on collection.", {
+        active: activeVehicles.length,
+        total: (vehicles.data ?? []).length,
+      }),
+    ];
+    if (incoming.length > 0) {
+      lines.push(
+        t("{count} loads are on their way to a collection point.", {
+          count: incoming.length,
+        }),
+      );
+    }
+    const next = pending[0];
+    if (next) {
+      lines.push(
+        t("Next in the queue is {qty} kilograms of {produce} from {farmer}.", {
+          qty: number(next.quantity),
+          produce: t(next.produce_type),
+          farmer: next.farmer_name ?? t("Farmer"),
+        }),
+      );
+    }
+    return lines.join(" ");
+  };
+
   if (state.loading && shipments.length === 0) {
     return <Loader label="Loading collection queue" />;
   }
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <motion.div
         variants={listStagger}
         initial="hidden"

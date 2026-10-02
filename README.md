@@ -45,6 +45,7 @@ hard-coded in the frontend.
 - Demand forecasting chart with expected demand, recommended stock, shortage,
   and surplus
 - Retailer view of incoming loads, shelf stock, and what to order
+- AI operations assistant powered by Gemini; the API key stays on the backend
 - Offline caching, offline indicator, toasts, loading and empty states
 
 ## Architecture
@@ -198,6 +199,13 @@ to reseed.
 | --- | --- | --- |
 | `VITE_API_URL` | `http://localhost:8000` | REST base URL |
 | `VITE_WS_URL` | `ws://localhost:8000/ws/live` | Live channel |
+
+The assistant uses Google's hosted Gemini API so it also works when the app is
+deployed. Create an API key in Google AI Studio, then set `GEMINI_API_KEY` in
+`backend/.env` for local development and in the backend service's environment
+settings for production (Render: **Dashboard → agrofarm-api → Environment**).
+Never put the key in the frontend or commit it. `GEMINI_MODEL` defaults to
+`gemini-2.5-flash`. The assistant does not read live dashboard records.
 
 ## Demo roles
 

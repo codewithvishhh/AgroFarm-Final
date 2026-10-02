@@ -259,6 +259,6 @@ export const systemApi = {
 export const assistantApi = {
   chat: (messages: { role: "user" | "assistant"; content: string }[]) =>
     http
-      .post<{ message: string }>("/api/chat", { messages })
+      .post<{ message: string }>("/api/chat", { messages }, { timeout: 125000 })
       .then((response) => response.data.message),
 };

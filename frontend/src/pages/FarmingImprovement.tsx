@@ -13,6 +13,8 @@ import {
   type CropGuide,
 } from "../data/farmingGuide";
 import { useI18n } from "../i18n/LanguageProvider";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
 
 const fieldClass =
   "rounded-lg border border-husk/12 bg-canopy/50 backdrop-blur px-2.5 py-2 text-[11px] text-husk outline-none focus:border-crop/60";
@@ -92,8 +94,55 @@ export function FarmingImprovement() {
 
   const result = plan ? buildPlan(plan) : null;
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const number = (value: number) =>
+      value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    if (!plan || !result) {
+      return [
+        t("Farming improvement summary."),
+        t("Enter your field area and crop above to see fertilizer, watering, and care advice."),
+      ].join(" ");
+    }
+    const lines = [
+      t("Farming improvement summary for {crop} on {acres} acres.", {
+        crop: t(plan.guide.crop),
+        acres: result.acres.toFixed(2),
+      }),
+      t("Add about {qty} kilograms of farmyard manure or compost.", {
+        qty: number(result.manureKg),
+      }),
+      t("Fertilizer: {items}.", {
+        items: result.products
+          .map((item) => `${item.name} ${number(item.kg)} ${t("kilograms")}`)
+          .join(", "),
+      }),
+      t("Give about {litres} litres of water every {days} days.", {
+        litres: number(result.litresPerIrrigation),
+        days: plan.guide.water.intervalDays,
+      }),
+    ];
+    if (plan.guide.care.length > 0) {
+      lines.push(
+        t("Top care tips: {tips}", {
+          tips: plan.guide.care
+            .slice(0, 3)
+            .map((tip) => t(tip))
+            .join(" "),
+        }),
+      );
+    }
+    return lines.join(" ");
+  };
+
+
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <Panel
         title={t("Tell us about your field")}
         description={t("Enter the field area and crop to get practical recommendations")}

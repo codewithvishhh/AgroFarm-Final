@@ -11,6 +11,9 @@ import { useFetch } from "../hooks/useFetch";
 import { mergeShipment, useLiveEvent } from "../hooks/useLive";
 import { shipmentsApi, vehiclesApi, warehousesApi } from "../services/api";
 import type { Shipment, ShipmentStatus } from "../types";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 const FILTERS: (ShipmentStatus | "ALL")[] = [
   "ALL",
@@ -22,6 +25,7 @@ const FILTERS: (ShipmentStatus | "ALL")[] = [
 ];
 
 export function Shipments() {
+  const { t } = useI18n();
   const { session } = useAuth();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [filter, setFilter] = useState<ShipmentStatus | "ALL">("ALL");
@@ -64,10 +68,38 @@ export function Shipments() {
     });
   }, [shipments, filter, search]);
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const count = (status: ShipmentStatus) =>
+      shipments.filter((shipment) => shipment.status === status).length;
+    const lines = [
+      t("Shipments summary."),
+      t("{count} shipments in the queue.", { count: shipments.length }),
+      t("{pending} pending, {transit} in transit, {delayed} delayed and {delivered} delivered.", {
+        pending: count("PENDING"),
+        transit: count("IN_TRANSIT"),
+        delayed: count("DELAYED"),
+        delivered: count("DELIVERED"),
+      }),
+    ];
+    if (filter !== "ALL" || search.trim()) {
+      lines.push(
+        t("{count} shipments match the current filter.", { count: visible.length }),
+      );
+    }
+    return lines.join(" ");
+  };
+
+
   const canCreate = session?.role === "FARMER" || session?.role === "COLLECTION";
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5">
           {FILTERS.map((option) => (

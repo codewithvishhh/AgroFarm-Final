@@ -12,6 +12,9 @@ import { mergeShipment, useLive, useLiveEvent } from "../hooks/useLive";
 import { shipmentsApi, vehiclesApi, warehousesApi } from "../services/api";
 import type { CollectionStatus, Shipment } from "../types";
 import { formatQuantity, timeAgo, titleCase } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 const STAGES: CollectionStatus[] = [
   "REQUESTED",
@@ -26,6 +29,7 @@ const fieldClass =
 
 /** Collection desk: accept requests, assign pickup, record what was collected. */
 export function CollectionRequests() {
+  const { t } = useI18n();
   const { pushToast } = useLive();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -103,12 +107,38 @@ export function CollectionRequests() {
     }
   };
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const at = (stages: CollectionStatus[]) =>
+      shipments.filter((shipment) => stages.includes(shipment.collection_status))
+        .length;
+    const lines = [
+      t("Collection requests summary."),
+      t("{count} requests are in the queue.", { count: queue.length }),
+      t("{pending} are pending, {approved} are approved and {assigned} have a pickup vehicle assigned.", {
+        pending: at(["REQUESTED"]),
+        approved: at(["ACCEPTED"]),
+        assigned: at(["PICKUP_ASSIGNED"]),
+      }),
+      t("{collected} are collected and {completed} are sent to the warehouse.", {
+        collected: at(["COLLECTED"]),
+        completed: at(["SENT_TO_WAREHOUSE"]),
+      }),
+    ];
+    return lines.join(" ");
+  };
+
   if (state.loading && shipments.length === 0) {
     return <Loader label="Loading collection requests" />;
   }
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {STAGES.map((stage) => (
           <div

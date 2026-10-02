@@ -23,6 +23,9 @@ import { mergeShipment, useLiveEvent } from "../hooks/useLive";
 import { alertsApi, dashboardApi, shipmentsApi } from "../services/api";
 import type { Shipment } from "../types";
 import { formatQuantity, timeAgo, titleCase } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 const axisStyle = { fill: "#8CA79A", fontSize: 11 };
 const tooltipStyle = {
@@ -44,6 +47,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 /** Supply chain control dashboard: one screen across the whole network. */
 export function ControlTower() {
+  const { t } = useI18n();
   const [shipments, setShipments] = useState<Shipment[]>([]);
 
   const stats = useFetch(() => dashboardApi.stats(), [], "stats");
@@ -78,10 +82,45 @@ export function ControlTower() {
     .filter((alert) => alert.severity !== "INFO")
     .slice(0, 6);
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    if (!kpi) {
+      return [t("Control tower summary."), t("Figures are still loading.")].join(" ");
+    }
+    const lines = [
+      t("Control tower summary."),
+      t("{active} shipments are active and {transit} vehicles are in transit.", {
+        active: kpi.active_shipments,
+        transit: kpi.in_transit,
+      }),
+      t("{delivered} delivered, {delayed} delayed and {pending} pending.", {
+        delivered: kpi.delivered,
+        delayed: kpi.delayed,
+        pending: kpi.pending,
+      }),
+      t("On-time rate is {percent} percent.", { percent: kpi.on_time_rate }),
+      t("Network utilization is {percent} percent across {count} warehouses.", {
+        percent: kpi.warehouse_utilization,
+        count: kpi.total_warehouses,
+      }),
+      t("There are {alerts} open alerts, {critical} critical, and {emergencies} active emergencies.", {
+        alerts: kpi.active_alerts,
+        critical: kpi.critical_alerts,
+        emergencies: kpi.active_emergencies,
+      }),
+    ];
+    return lines.join(" ");
+  };
+
   if (state.loading && !kpi) return <Loader label="Loading control tower" />;
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-7">
         <StatCard label="Active shipments" value={kpi?.active_shipments ?? 0} tone="crop" />
         <StatCard label="Vehicles in transit" value={kpi?.in_transit ?? 0} tone="chill" />

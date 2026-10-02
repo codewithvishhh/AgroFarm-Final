@@ -11,12 +11,16 @@ import { useFetch } from "../hooks/useFetch";
 import { warehousesApi } from "../services/api";
 import type { AllocationResult } from "../types";
 import { titleCase } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 const fieldClass =
   "rounded-lg border border-husk/12 bg-canopy/50 backdrop-blur px-2.5 py-2 text-[11px] text-husk outline-none focus:border-crop/60";
 
 /** Smart warehouse allocation: scoring, not a model, with the reasons shown. */
 export function Allocation() {
+  const { t } = useI18n();
   const [produce, setProduce] = useState("Tomato");
   const [quantity, setQuantity] = useState("2000");
   const [hub, setHub] = useState(FARM_HUBS[0].name);
@@ -53,8 +57,48 @@ export function Allocation() {
 
   const best = result?.recommended;
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const number = (value: number) =>
+      value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const list = warehouses.data ?? [];
+    const free = list.reduce((sum, item) => sum + item.available_capacity, 0);
+    const lines = [
+      t("Warehouse allocation summary."),
+      t("{count} warehouses have {qty} kilograms of free space in total.", {
+        count: list.length,
+        qty: number(free),
+      }),
+    ];
+    if (best && result) {
+      lines.push(
+        t("For {qty} kilograms of {produce}, the recommended warehouse is {name} in {location}, {distance} kilometres away.", {
+          qty: number(result.quantity),
+          produce: t(result.produce_type),
+          name: best.name,
+          location: best.location,
+          distance: best.distance_km.toFixed(0),
+        }),
+        t("{count} warehouses can fit this load.", {
+          count: result.candidates.filter((item) => item.fits).length,
+        }),
+      );
+    } else if (result) {
+      lines.push(t("No warehouse can fit this load right now."));
+    } else {
+      lines.push(t("Choose the produce, quantity and farm hub, then find a warehouse."));
+    }
+    return lines.join(" ");
+  };
+
+
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <Panel
         title="Find a warehouse"
         description="Scored on free capacity, distance, current utilization, and storage compatibility"

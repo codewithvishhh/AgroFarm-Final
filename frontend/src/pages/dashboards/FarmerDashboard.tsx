@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { listStagger } from "../../animations/variants";
@@ -10,6 +10,11 @@ import { ListenButton } from "../../components/ListenButton";
 import { Loader } from "../../components/Loader";
 import { Panel } from "../../components/Panel";
 import { ProductDemand } from "../../components/ProductDemand";
+import {
+  ProductionAnalysis,
+  productionSeries,
+  type ProductionSource,
+} from "../../components/ProductionAnalysis";
 import { ProgressTrack } from "../../components/ProgressTrack";
 import {
   RetailerPriceComparison,
@@ -24,6 +29,10 @@ import {
   loadProductDemand,
   type ProductDemand as ProductDemandRow,
 } from "../../data/productDemand";
+import {
+  loadProductionHistory,
+  type ProductionHistory,
+} from "../../data/productionHistory";
 import { loadRetailerOffers, type RetailerOffer } from "../../data/retailerOffers";
 import { useAuth } from "../../hooks/useAuth";
 import { useFetch } from "../../hooks/useFetch";
@@ -32,18 +41,27 @@ import { useI18n } from "../../i18n/LanguageProvider";
 import { shipmentsApi, vehiclesApi, warehousesApi } from "../../services/api";
 import type { Shipment } from "../../types";
 import { formatQuantity, formatRupees, timeAgo } from "../../utils/format";
+import {
+  analyzeProduction,
+  describeProduction,
+  monthlyTotals,
+  type ProductionPoint,
+} from "../../utils/productionAnalysis";
 
 export function FarmerDashboard() {
   const { session } = useAuth();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [formOpen, setFormOpen] = useState(false);
-  const { t } = useI18n();
+  const { t, speechLang } = useI18n();
 
   // Shared by Local & Foreign Demand, Retailer Price Comparison, and Listen.
   const [product, setProduct] = useState("Tomato");
   const [sellQuantity, setSellQuantity] = useState(100);
   const [demandRows, setDemandRows] = useState<ProductDemandRow[]>([]);
   const [offers, setOffers] = useState<RetailerOffer[]>([]);
+  const [productionRows, setProductionRows] = useState<ProductionHistory[]>([]);
+  const [productionSource, setProductionSource] =
+    useState<ProductionSource>("region");
   useEffect(() => {
     let alive = true;
     loadProductDemand()
@@ -51,6 +69,9 @@ export function FarmerDashboard() {
       .catch(() => undefined);
     loadRetailerOffers()
       .then((rows) => alive && setOffers(rows))
+      .catch(() => undefined);
+    loadProductionHistory()
+      .then((rows) => alive && setProductionRows(rows))
       .catch(() => undefined);
     return () => {
       alive = false;
@@ -98,6 +119,22 @@ export function FarmerDashboard() {
     0,
   );
 
+  // The farmer's own supplied quantity per month, per produce type.
+  const myMonthly = useMemo(() => {
+    const byProduct: Record<string, { date: Date; quantity: number }[]> = {};
+    scope.forEach((shipment) => {
+      (byProduct[shipment.produce_type] ??= []).push({
+        date: new Date(`${shipment.created_at}Z`),
+        quantity: shipment.quantity,
+      });
+    });
+    const result: Record<string, ProductionPoint[]> = {};
+    Object.entries(byProduct).forEach(([name, rows]) => {
+      result[name] = monthlyTotals(rows, speechLang);
+    });
+    return result;
+  }, [scope, speechLang]);
+
   /** Plain-language summary read aloud by the 🔊 Listen button. */
   const buildSpokenSummary = () => {
     const number = (value: number) =>
@@ -142,6 +179,24 @@ export function FarmerDashboard() {
             markets: demand.foreign.markets.map((market) => t(market)).join(", "),
           },
         ),
+      );
+    }
+
+    const series = productionSeries(
+      productionSource,
+      product,
+      productionRows,
+      myMonthly,
+    );
+    const analysis = analyzeProduction(series.points);
+    if (analysis) {
+      lines.push(
+        ...describeProduction(analysis, {
+          t,
+          product,
+          unit: t(series.unit),
+          period: series.period,
+        }).slice(0, 3),
       );
     }
 
@@ -304,6 +359,15 @@ export function FarmerDashboard() {
         rows={demandRows}
         product={product}
         onProductChange={setProduct}
+      />
+
+      <ProductionAnalysis
+        history={productionRows}
+        myMonthly={myMonthly}
+        product={product}
+        onProductChange={setProduct}
+        source={productionSource}
+        onSourceChange={setProductionSource}
       />
 
       <RetailerPriceComparison

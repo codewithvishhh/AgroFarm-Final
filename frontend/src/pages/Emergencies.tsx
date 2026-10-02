@@ -13,8 +13,12 @@ import { useLive, useLiveEvent } from "../hooks/useLive";
 import { emergenciesApi, vehiclesApi } from "../services/api";
 import type { Emergency, NearbyFacility } from "../types";
 import { formatDateTime, timeAgo, titleCase } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 export function Emergencies() {
+  const { t } = useI18n();
   const { pushToast } = useLive();
   const [emergencies, setEmergencies] = useState<Emergency[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -115,12 +119,51 @@ export function Emergencies() {
     }
   };
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const resolved = emergencies.filter((row) => row.status === "RESOLVED");
+    const critical = active.filter((row) => row.severity === "CRITICAL");
+    const lines = [t("Emergencies summary.")];
+    if (active.length === 0) {
+      lines.push(t("There are no active emergencies."));
+    } else {
+      lines.push(
+        t("There are {count} active emergencies, {critical} of them critical.", {
+          count: active.length,
+          critical: critical.length,
+        }),
+      );
+      const first = active[0];
+      lines.push(
+        t("Latest case: {type}, status {status}.", {
+          type: t(titleCase(first.emergency_type)),
+          status: t(titleCase(first.status)),
+        }),
+      );
+      if (first.nearest_warehouse) {
+        lines.push(
+          t("Nearest warehouse is {name}.", { name: first.nearest_warehouse }),
+        );
+      }
+    }
+    lines.push(
+      t("{count} emergencies are resolved.", { count: resolved.length }),
+    );
+    return lines.join(" ");
+  };
+
+
   if (state.loading && emergencies.length === 0) {
     return <Loader label="Loading emergencies" />;
   }
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Active cases"

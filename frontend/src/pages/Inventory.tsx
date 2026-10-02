@@ -11,6 +11,9 @@ import { useLive, useLiveEvent } from "../hooks/useLive";
 import { inventoryApi, warehousesApi } from "../services/api";
 import type { TransactionType } from "../types";
 import { formatQuantity, timeAgo } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 const TYPES: TransactionType[] = [
   "RECEIVED",
@@ -25,6 +28,7 @@ const fieldClass =
   "rounded-lg border border-husk/12 bg-canopy/50 backdrop-blur px-2.5 py-2 text-[11px] text-husk outline-none focus:border-crop/60";
 
 export function Inventory() {
+  const { t } = useI18n();
   const { pushToast } = useLive();
   const [warehouseId, setWarehouseId] = useState("");
   const [produce, setProduce] = useState("");
@@ -89,10 +93,45 @@ export function Inventory() {
     }
   };
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const number = (value: number) =>
+      value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const low = lowStock.data ?? [];
+    const top = [...rows].sort((a, b) => b.quantity - a.quantity).slice(0, 3);
+    const lines = [
+      t("Inventory summary."),
+      t("Stock on hand is {qty} kilograms in {count} stock lines.", {
+        qty: number(total),
+        count: rows.length,
+      }),
+    ];
+    if (top.length > 0) {
+      lines.push(
+        t("Largest stocks: {items}.", {
+          items: top
+            .map((row) => `${t(row.produce_type)} ${number(row.quantity)} ${row.unit}`)
+            .join(", "),
+        }),
+      );
+    }
+    lines.push(
+      low.length > 0
+        ? t("{count} items are below their reorder level.", { count: low.length })
+        : t("No items are below their reorder level."),
+    );
+    return lines.join(" ");
+  };
+
   if (items.loading && rows.length === 0) return <Loader label="Loading stock" />;
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Stock on hand"

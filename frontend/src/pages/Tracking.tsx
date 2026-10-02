@@ -12,8 +12,12 @@ import { mergeShipment, useLiveEvent } from "../hooks/useLive";
 import { shipmentsApi } from "../services/api";
 import type { Shipment } from "../types";
 import { formatEta } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 export function Tracking() {
+  const { t } = useI18n();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -37,11 +41,42 @@ export function Tracking() {
     ? moving.filter((shipment) => shipment.shipment_id === selected)
     : moving;
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const delayed = moving.filter((shipment) => shipment.status === "DELAYED");
+    const lines = [
+      t("Live tracking summary."),
+      t("{count} vehicles are on the road.", { count: moving.length }),
+      delayed.length > 0
+        ? t("{count} shipments are delayed and need attention.", {
+            count: delayed.length,
+          })
+        : t("No shipments are delayed."),
+    ];
+    moving.slice(0, 3).forEach((shipment) => {
+      lines.push(
+        t("{id}, {produce} to {destination}: {percent} percent covered.", {
+          id: shipment.shipment_id,
+          produce: t(shipment.produce_type),
+          destination: shipment.destination,
+          percent: shipment.progress_percentage.toFixed(0),
+        }),
+      );
+    });
+    return lines.join(" ");
+  };
+
   if (state.loading && shipments.length === 0) {
     return <Loader label="Loading live fleet" />;
   }
 
   return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
     <div className="grid gap-6 xl:grid-cols-[1fr_21rem]">
       <Panel bodyClassName="p-4">
         {moving.length === 0 ? (
@@ -118,6 +153,7 @@ export function Tracking() {
           )}
         </ul>
       </Panel>
+    </div>
     </div>
   );
 }

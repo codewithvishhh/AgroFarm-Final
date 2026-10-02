@@ -8,6 +8,9 @@ import { useFetch } from "../hooks/useFetch";
 import { inventoryApi, warehousesApi } from "../services/api";
 import type { TransactionType } from "../types";
 import { formatDateTime, formatQuantity, titleCase } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 const TYPES: TransactionType[] = [
   "RECEIVED",
@@ -32,6 +35,7 @@ const fieldClass =
 
 /** Inventory track record: one row per quantity movement, with the balance. */
 export function InventoryHistory() {
+  const { t } = useI18n();
   const [warehouseId, setWarehouseId] = useState("");
   const [produce, setProduce] = useState("");
   const [type, setType] = useState<TransactionType | "">("");
@@ -57,8 +61,43 @@ export function InventoryHistory() {
     new Set(rows.map((row) => row.produce_type)),
   ).sort();
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const number = (value: number) =>
+      value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    if (rows.length === 0) {
+      return [t("Inventory history summary."), t("No movements recorded yet.")].join(" ");
+    }
+    const byType = TYPES.map((kind) => ({
+      kind,
+      count: rows.filter((row) => row.transaction_type === kind).length,
+    })).filter((entry) => entry.count > 0);
+    const latest = rows[0];
+    const lines = [
+      t("Inventory history summary."),
+      t("{count} stock movements are shown.", { count: rows.length }),
+      byType
+        .map((entry) => `${t(titleCase(entry.kind))} ${entry.count}`)
+        .join(", ") + ".",
+      t("Latest movement: {type} {qty} {unit} of {produce}. Balance after it is {balance}.", {
+        type: t(titleCase(latest.transaction_type)),
+        qty: number(latest.quantity),
+        unit: latest.unit,
+        produce: t(latest.produce_type),
+        balance: number(latest.balance_after_transaction),
+      }),
+    ];
+    return lines.join(" ");
+  };
+
+
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <Panel title="Filters" description="Narrow the track record">
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-[11px] text-moss">

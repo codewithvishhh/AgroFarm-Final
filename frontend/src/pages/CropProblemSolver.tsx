@@ -5,6 +5,8 @@ import { EmptyState } from "../components/EmptyState";
 import { Panel } from "../components/Panel";
 import { CROP_PROBLEMS } from "../data/cropProblems";
 import { useI18n } from "../i18n/LanguageProvider";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
 
 const fieldClass =
   "rounded-lg border border-husk/12 bg-canopy/50 backdrop-blur px-2.5 py-2 text-[11px] text-husk outline-none focus:border-crop/60";
@@ -27,8 +29,45 @@ export function CropProblemSolver() {
   );
   const selected = CROP_PROBLEMS.find((problem) => problem.id === selectedId);
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    if (!selected) {
+      return [
+        t("Crop problem solver."),
+        t("{count} common problems are listed.", { count: visible.length }),
+        t("Choose a problem above to see the likely cause and what to do."),
+      ].join(" ");
+    }
+    const [likely] = selected.issues;
+    const lines = [t("Problem: {title}.", { title: t(selected.title) })];
+    if (likely) {
+      lines.push(
+        t("Most likely cause: {name}.", { name: t(likely.name) }),
+        t("How to check: {check}", { check: t(likely.check) }),
+        t("What to do: {steps}", {
+          steps: likely.remedy.map((step) => t(step)).join(" "),
+        }),
+      );
+    }
+    if (selected.prevention.length > 0) {
+      lines.push(
+        t("Prevent it next time: {tips}", {
+          tips: selected.prevention.map((tip) => t(tip)).join(" "),
+        }),
+      );
+    }
+    if (selected.urgent) lines.push(t(selected.urgent));
+    return lines.join(" ");
+  };
+
+
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <Panel
         title={t("What problem do you see?")}
         description={t("Pick the problem that looks closest to what is happening in your field")}

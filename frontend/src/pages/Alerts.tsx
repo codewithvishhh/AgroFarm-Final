@@ -13,6 +13,9 @@ import { useLiveEvent } from "../hooks/useLive";
 import { alertsApi } from "../services/api";
 import type { Alert, AlertSeverity } from "../types";
 import { formatDateTime, titleCase } from "../utils/format";
+import { LanguageSelector } from "../components/LanguageSelector";
+import { ListenButton } from "../components/ListenButton";
+import { useI18n } from "../i18n/LanguageProvider";
 
 const SEVERITIES: (AlertSeverity | "ALL")[] = [
   "ALL",
@@ -22,6 +25,7 @@ const SEVERITIES: (AlertSeverity | "ALL")[] = [
 ];
 
 export function Alerts() {
+  const { t } = useI18n();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [severity, setSeverity] = useState<AlertSeverity | "ALL">("ALL");
   const [type, setType] = useState("ALL");
@@ -57,12 +61,40 @@ export function Alerts() {
       current.map((alert) => (alert.id === updated.id ? updated : alert)),
     );
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const open = alerts.filter((alert) => !alert.is_resolved);
+    const critical = open.filter((alert) => alert.severity === "CRITICAL");
+    const warnings = open.filter((alert) => alert.severity === "WARNING");
+    const lines = [t("Alerts summary.")];
+    if (open.length === 0) {
+      lines.push(t("There are no open alerts."));
+    } else {
+      lines.push(
+        t("There are {count} open alerts: {critical} critical and {warning} warnings.", {
+          count: open.length,
+          critical: critical.length,
+          warning: warnings.length,
+        }),
+      );
+      (critical.length > 0 ? critical : open).slice(0, 3).forEach((alert) => {
+        lines.push(t(alert.message));
+      });
+    }
+    return lines.join(" ");
+  };
+
   if (state.loading && alerts.length === 0) {
     return <Loader label="Loading alerts" />;
   }
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Open alerts"

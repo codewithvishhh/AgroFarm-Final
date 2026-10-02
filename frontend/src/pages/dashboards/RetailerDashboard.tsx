@@ -15,8 +15,12 @@ import { mergeShipment, useLiveEvent } from "../../hooks/useLive";
 import { forecastApi, inventoryApi, shipmentsApi } from "../../services/api";
 import type { Shipment } from "../../types";
 import { formatEta, formatQuantity } from "../../utils/format";
+import { LanguageSelector } from "../../components/LanguageSelector";
+import { ListenButton } from "../../components/ListenButton";
+import { useI18n } from "../../i18n/LanguageProvider";
 
 export function RetailerDashboard() {
+  const { t } = useI18n();
   const [shipments, setShipments] = useState<Shipment[]>([]);
 
   const state = useFetch(
@@ -46,12 +50,52 @@ export function RetailerDashboard() {
   const lowStock = items.filter((item) => item.quantity < item.reorder_level);
   const rows = forecasts.data ?? [];
 
+  /** Plain-language summary read aloud by the 🔊 Listen button. */
+  const buildSpokenSummary = () => {
+    const number = (value: number) =>
+      value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const lines = [
+      t("Retailer dashboard summary."),
+      t("{count} shipments are on their way to your store, and {delayed} are delayed.", {
+        count: incoming.length,
+        delayed: delayed.length,
+      }),
+      t("Current stock is {qty} kilograms.", { qty: number(stock) }),
+      lowStock.length > 0
+        ? t("{count} items are low on stock: {names}.", {
+            count: lowStock.length,
+            names: lowStock
+              .slice(0, 3)
+              .map((item) => t(item.produce_type))
+              .join(", "),
+          })
+        : t("No items are low on stock."),
+    ];
+    const shortages = rows.filter((row) => row.potential_shortage > 0);
+    if (shortages.length > 0) {
+      lines.push(
+        t("Demand forecast shows a possible shortage of {names}.", {
+          names: shortages
+            .slice(0, 3)
+            .map((row) => t(row.produce_type))
+            .join(", "),
+        }),
+      );
+    }
+    return lines.join(" ");
+  };
+
   if (state.loading && shipments.length === 0) {
     return <Loader label="Loading store view" />;
   }
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LanguageSelector />
+        <ListenButton getText={buildSpokenSummary} />
+      </div>
+
       <motion.div
         variants={listStagger}
         initial="hidden"
